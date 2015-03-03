@@ -17,11 +17,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.         
 */
 #include "pin.H"
+
 #include <jansson.h>
 #include <map>
 #include <string>
 #include <string.h>
 #include <iostream>
+#include <fstream>
 #include <set>
 #include <list>
 
@@ -76,9 +78,12 @@ bool is_address_in_blacklisted_modules(ADDRINT address)
 bool is_module_should_be_blacklisted(const std::string &image_path)
 {
     // avoid instrumentation of linux library.
+    std::ifstream infile("blacklist");
     list<string> blacklist;
-    blacklist.push_front("/lib/i386-linux-gnu/libdl.so.2");
-    blacklist.push_front("/lib/ld-linux.so.2");
+
+    std::string line;
+    while (std::getline(infile, line))
+        blacklist.push_front(line);
 
     for (list<std::string>::iterator i = blacklist.begin(); i != blacklist.end(); i++) {
         if (*i == image_path)
