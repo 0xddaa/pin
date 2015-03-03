@@ -23,6 +23,7 @@
 #include <string.h>
 #include <iostream>
 #include <set>
+#include <list>
 
 
 /// Types
@@ -32,22 +33,16 @@ typedef std::map<ADDRINT, UINT32> BASIC_BLOCKS_INFO_T;
 
 
 ///Globals
-// The number of the total instruction executed by the program
 UINT64 instruction_counter = 0;
-// The number of threads
 UINT64 thread_counter = 0;
-// This is the list of the blacklisted module ; you can find their names & start/end addresses
 MODULE_BLACKLIST_T modules_blacklisted;
-// For each bbl executed, we store its address and its number of instruction
 BASIC_BLOCKS_INFO_T basic_blocks_info;
-// For each module loaded, we keep its name & start/end addresses
 MODULE_LIST_T module_list;
-// process name
 char *process_name; 
 
 
 /// Pintool arguments
-// You can specify where the output JSON report will be written
+//  where the output JSON report
 KNOB<std::string> KnobOutputPath(
     KNOB_MODE_WRITEONCE,
     "pintool",
@@ -56,7 +51,7 @@ KNOB<std::string> KnobOutputPath(
     "Specify where you want to store the JSON report"
 );
 
-// You can set a timeout (in cases the application never ends)
+// set a timeout
 KNOB<std::string> KnobTimeoutMs(
     KNOB_MODE_WRITEONCE,
     "pintool",
@@ -66,8 +61,6 @@ KNOB<std::string> KnobTimeoutMs(
 );
 
 
-/// Utility functions
-// Walk the modules_blacklisted list and check if address belongs to one of the blacklisted module
 bool is_address_in_blacklisted_modules(ADDRINT address)
 {
     for(MODULE_BLACKLIST_T::const_iterator it = modules_blacklisted.begin(); it != modules_blacklisted.end(); ++it)
@@ -80,22 +73,17 @@ bool is_address_in_blacklisted_modules(ADDRINT address)
     return false;
 }
 
-// Check is image_path matches one of the string in the blacklist
 bool is_module_should_be_blacklisted(const std::string &image_path)
 {
-    // If the path of a DLL matches one of the following string, the module won't be instrumented by Pin.
-    // This way you can avoid instrumentation of Windows API.
-/*
-    static char* path_to_blacklist[] = {
-        "C:\\Windows\\"
-        // "C:\\Windows\\system32\\",
-        // "C:\\Windows\\WinSxS\\"
-    };
+    // avoid instrumentation of linux library.
+    list<string> blacklist;
+    blacklist.push_front("/lib/i386-linux-gnu/libdl.so.2");
+    blacklist.push_front("/lib/ld-linux.so.2");
 
-    for(unsigned int i = 0; i < sizeof(path_to_blacklist) / sizeof(path_to_blacklist[0]); ++i)
-        if(_strnicmp(path_to_blacklist[i], image_path.c_str(), strlen(path_to_blacklist[i])) == 0)
+    for (list<std::string>::iterator i = blacklist.begin(); i != blacklist.end(); i++) {
+        if (*i == image_path)
             return true;
-*/
+    }
 
     return false;
 }
@@ -122,7 +110,7 @@ VOID PIN_FAST_ANALYSIS_CALL handle_basic_block(UINT32 number_instruction_in_bb, 
 // We have to instrument traces in order to instrument each BBL, the API doesn't have a BBL_AddInstrumentFunction
 VOID trace_instrumentation(TRACE trace, VOID *v)
 {
-    // We don't want to instrument the BBL contained in the Windows API
+    // We don't want to instrument the BBL contained in the linux library
     if(is_address_in_blacklisted_modules(TRACE_Address(trace)))
         return;
 
@@ -263,15 +251,6 @@ int main(int argc, char *argv[])
     if(PIN_Init(argc,argv))
         return Usage();
 
-    /* 
-    for (int i = 0; i < argc; i++) {
-        if (!strcmp(argv[i], "--"))
-            process_name = argv[i+1];
-    }
-
-    printf("%s\n", process_name);
-    */
-    
     /// Instrumentations
     // Register function to be called to instrument traces
     TRACE_AddInstrumentFunction(trace_instrumentation, 0);
@@ -293,23 +272,6 @@ int main(int argc, char *argv[])
         0,
         NULL
     );
-
-    // If we are in a wow64 process we must blacklist manually the JMP FAR: stub
-    // from being instrumented (each time a syscall is called, it will be instrumented for *nothing*)
-    // Its address is in FS:[0xC0] on Windows 7
-/*
-    ADDRINT wow64stub = __readfsdword(0xC0);
-    modules_blacklisted.insert(
-        std::make_pair(
-            std::string("wow64stub"),
-            std::make_pair(
-                wow64stub,
-                wow64stub
-            )
-        )
-    );
-*/
-    /// FIRE IN THE HOLE
 
     // Start the program, never returns
     PIN_StartProgram();
