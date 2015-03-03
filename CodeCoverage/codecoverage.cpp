@@ -24,6 +24,8 @@
 #include <string.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <iomanip>
 #include <set>
 #include <list>
 
@@ -166,6 +168,16 @@ VOID image_instrumentation(IMG img, VOID * v)
         modules_blacklisted.insert(module_info);
 }
 
+const char* int2hex(int i)
+{
+    std::stringstream stream;
+    stream << "0x" 
+        << std::setfill ('0') << std::setw(sizeof(int)*2) 
+        << std::hex << i;
+
+    return stream.str().c_str();
+}
+
 VOID save_instrumentation_infos()
 {
     /// basic_blocks_info section
@@ -179,7 +191,7 @@ VOID save_instrumentation_infos()
     for(BASIC_BLOCKS_INFO_T::const_iterator it = basic_blocks_info.begin(); it != basic_blocks_info.end(); ++it)
     {
         bbl_info = json_object();
-        json_object_set_new(bbl_info, "address", json_integer(it->first));
+        json_object_set_new(bbl_info, "address", json_string(int2hex(it->first)));
         json_object_set_new(bbl_info, "nbins", json_integer(it->second));
         json_array_append_new(bbls_list, bbl_info);
     }
@@ -195,8 +207,8 @@ VOID save_instrumentation_infos()
     {
         json_t *mod_info = json_object();
         json_object_set_new(mod_info, "path", json_string(it->first.c_str()));
-        json_object_set_new(mod_info, "low_address", json_integer(it->second.first));
-        json_object_set_new(mod_info, "high_address", json_integer(it->second.second));
+        json_object_set_new(mod_info, "low_address", json_string(int2hex(it->second.first)));
+        json_object_set_new(mod_info, "high_address", json_string(int2hex(it->second.second)));
         json_array_append_new(modules_list, mod_info);
     }
 
@@ -211,8 +223,8 @@ VOID save_instrumentation_infos()
     {
         json_t *mod_info = json_object();
         json_object_set_new(mod_info, "path", json_string(it->first.c_str()));
-        json_object_set_new(mod_info, "low_address", json_integer(it->second.first));
-        json_object_set_new(mod_info, "high_address", json_integer(it->second.second));
+        json_object_set_new(mod_info, "low_address", json_string(int2hex(it->second.first)));
+        json_object_set_new(mod_info, "high_address", json_string(int2hex(it->second.second)));
         json_array_append_new(modules_list_, mod_info);
     }
 
