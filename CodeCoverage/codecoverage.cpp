@@ -15,8 +15,6 @@
 typedef std::map<std::string, std::pair<ADDRINT, ADDRINT> > MODULE_LIST_T;
 typedef std::map<ADDRINT, UINT32> BASIC_BLOCKS_INFO_T;
 
-UINT64 instruction_counter = 0;
-UINT64 thread_counter = 0;
 BASIC_BLOCKS_INFO_T basic_blocks_info;
 MODULE_LIST_T module_list;
 char *process_name; 
@@ -59,7 +57,6 @@ VOID PIN_FAST_ANALYSIS_CALL handle_basic_block(UINT32 number_instruction_in_bb, 
 {
 //  LOG("[ANALYSIS] BBL Address: " + hexstr(address_bb) + "\n");
     basic_blocks_info[address_bb] = number_instruction_in_bb;
-    instruction_counter += number_instruction_in_bb;
 }
 
 VOID trace_instrumentation(TRACE trace, VOID *v)
