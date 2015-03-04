@@ -149,7 +149,7 @@ VOID image_instrumentation(IMG img, VOID * v)
 {
     ADDRINT module_low_limit = IMG_LowAddress(img), module_high_limit = IMG_HighAddress(img); 
 
-    if(IMG_IsMainExecutable(img))
+    if(!IMG_IsMainExecutable(img))
         return;
 
     const std::string image_path = IMG_Name(img);
@@ -168,16 +168,6 @@ VOID image_instrumentation(IMG img, VOID * v)
         modules_blacklisted.insert(module_info);
 }
 
-const char* int2hex(int i)
-{
-    std::stringstream stream;
-    stream << "0x" 
-        << std::setfill ('0') << std::setw(sizeof(int)*2) 
-        << std::hex << i;
-
-    return stream.str().c_str();
-}
-
 VOID save_instrumentation_infos()
 {
     /// basic_blocks_info section
@@ -191,7 +181,7 @@ VOID save_instrumentation_infos()
     for(BASIC_BLOCKS_INFO_T::const_iterator it = basic_blocks_info.begin(); it != basic_blocks_info.end(); ++it)
     {
         bbl_info = json_object();
-        json_object_set_new(bbl_info, "address", json_string(int2hex(it->first)));
+        json_object_set_new(bbl_info, "address", json_string(hexstr(it->first).c_str()));
         json_object_set_new(bbl_info, "nbins", json_integer(it->second));
         json_array_append_new(bbls_list, bbl_info);
     }
@@ -207,8 +197,8 @@ VOID save_instrumentation_infos()
     {
         json_t *mod_info = json_object();
         json_object_set_new(mod_info, "path", json_string(it->first.c_str()));
-        json_object_set_new(mod_info, "low_address", json_string(int2hex(it->second.first)));
-        json_object_set_new(mod_info, "high_address", json_string(int2hex(it->second.second)));
+        json_object_set_new(mod_info, "low_address", json_string(hexstr(it->second.first).c_str()));
+        json_object_set_new(mod_info, "high_address", json_string(hexstr(it->second.second).c_str()));
         json_array_append_new(modules_list, mod_info);
     }
 
@@ -223,8 +213,8 @@ VOID save_instrumentation_infos()
     {
         json_t *mod_info = json_object();
         json_object_set_new(mod_info, "path", json_string(it->first.c_str()));
-        json_object_set_new(mod_info, "low_address", json_string(int2hex(it->second.first)));
-        json_object_set_new(mod_info, "high_address", json_string(int2hex(it->second.second)));
+        json_object_set_new(mod_info, "low_address", json_string(hexstr(it->second.first).c_str()));
+        json_object_set_new(mod_info, "high_address", json_string(hexstr(it->second.second).c_str()));
         json_array_append_new(modules_list_, mod_info);
     }
 
@@ -240,7 +230,6 @@ VOID save_instrumentation_infos()
     fclose(f);
 }
 
-// Called just before the application ends
 VOID pin_is_detached(VOID *v)
 {
     save_instrumentation_infos();
@@ -263,26 +252,14 @@ VOID sleeping_thread(VOID* v)
 
 int main(int argc, char *argv[])
 {
-    // Initialize PIN library. Print help message if -h(elp) is specified
-    // in the command line or the command line is invalid 
     if(PIN_Init(argc,argv))
         return Usage();
 
-    /// Instrumentations
-    // Register function to be called to instrument traces
     TRACE_AddInstrumentFunction(trace_instrumentation, 0);
-
-    // Register function to be called when the application exits
     PIN_AddFiniFunction(this_is_the_end, 0);
-    
-    // Register function to be called when a module is loaded
     IMG_AddInstrumentFunction(image_instrumentation, 0);
-
-    /// Other stuffs
-    // This routine will be called if the sleeping_thread calls PIN_Detach() (when the time is out)
     PIN_AddDetachFunction(pin_is_detached, 0);
 
-    // Run a thread that will wait for the time out
     PIN_SpawnInternalThread(
         sleeping_thread,
         0,
@@ -290,7 +267,6 @@ int main(int argc, char *argv[])
         NULL
     );
 
-    // Start the program, never returns
     PIN_StartProgram();
     
     return 0;
