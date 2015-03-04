@@ -12,8 +12,7 @@
 #include <list>
 
 
-typedef std::map<std::string, std::pair<ADDRINT, ADDRINT> > MODULE_BLACKLIST_T;
-typedef MODULE_BLACKLIST_T MODULE_LIST_T;
+typedef std::map<std::string, std::pair<ADDRINT, ADDRINT> > MODULE_LIST_T;
 typedef std::map<ADDRINT, UINT32> BASIC_BLOCKS_INFO_T;
 
 UINT64 instruction_counter = 0;
@@ -42,14 +41,11 @@ KNOB<std::string> KnobTimeoutMs(
 
 bool is_main_module(ADDRINT address)
 {
-    for(MODULE_LIST_T::const_iterator it = module_list.begin(); it != module_list.end(); ++it)
-    {
-        ADDRINT low_address = it->second.first, high_address = it->second.second;
-        if(address >= low_address && address <= high_address)
-            return true;
-    }
-
-    return false;
+    ADDRINT low_address = module_list.begin()->second.first;
+    ADDRINT high_address = module_list.begin()->second.second;
+//    LOG("[ANALYSIS] LOW Address: " + hexstr(low_address) + "\n");
+//    LOG("[ANALYSIS] HIGH Address: " + hexstr(high_address) + "\n");
+    return (address >= low_address && address <= high_address)? true : false;
 }
 
 INT32 Usage()
@@ -95,7 +91,6 @@ VOID image_instrumentation(IMG img, VOID * v)
 {
     ADDRINT module_low_limit = IMG_LowAddress(img), module_high_limit = IMG_HighAddress(img); 
     const std::string image_path = IMG_Name(img);
-
     std::pair<std::string, std::pair<ADDRINT, ADDRINT> > module_info = std::make_pair(
         image_path,
         std::make_pair(
@@ -130,7 +125,7 @@ VOID save_instrumentation_infos()
     json_object_set_new(modules, "unique_count", json_integer(module_list.size()));
     json_object_set_new(modules, "list", modules_list_);
 
-    for(MODULE_BLACKLIST_T::const_iterator it = module_list.begin(); it != module_list.end(); ++it)
+    for(MODULE_LIST_T::const_iterator it = module_list.begin(); it != module_list.end(); ++it)
     {
         json_t *mod_info = json_object();
         json_object_set_new(mod_info, "path", json_string(it->first.c_str()));
