@@ -1,21 +1,3 @@
-/*
-    pin-code-coverage-measure.cpp - Generate a JSON report with the address of
-    each BBL executed.
-    Copyright (C) 2013 Axel "0vercl0k" Souchet - http://www.twitter.com/0vercl0k
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.         
-*/
 #include "pin.H"
 
 #include <jansson.h>
@@ -30,23 +12,17 @@
 #include <list>
 
 
-/// Types
 typedef std::map<std::string, std::pair<ADDRINT, ADDRINT> > MODULE_BLACKLIST_T;
 typedef MODULE_BLACKLIST_T MODULE_LIST_T;
 typedef std::map<ADDRINT, UINT32> BASIC_BLOCKS_INFO_T;
 
-
-///Globals
 UINT64 instruction_counter = 0;
 UINT64 thread_counter = 0;
-MODULE_BLACKLIST_T modules_blacklisted;
 BASIC_BLOCKS_INFO_T basic_blocks_info;
 MODULE_LIST_T module_list;
 char *process_name; 
 
 
-/// Pintool arguments
-//  where the output JSON report
 KNOB<std::string> KnobOutputPath(
     KNOB_MODE_WRITEONCE,
     "pintool",
@@ -55,7 +31,6 @@ KNOB<std::string> KnobOutputPath(
     "Specify where you want to store the JSON report"
 );
 
-// set a timeout
 KNOB<std::string> KnobTimeoutMs(
     KNOB_MODE_WRITEONCE,
     "pintool",
@@ -65,9 +40,9 @@ KNOB<std::string> KnobTimeoutMs(
 );
 
 
-bool is_address_in_blacklisted_modules(ADDRINT address)
+bool is_main_module(ADDRINT address)
 {
-    for(MODULE_BLACKLIST_T::const_iterator it = modules_blacklisted.begin(); it != modules_blacklisted.end(); ++it)
+    for(MODULE_LIST_T::const_iterator it = module_list.begin(); it != module_list.end(); ++it)
     {
         ADDRINT low_address = it->second.first, high_address = it->second.second;
         if(address >= low_address && address <= high_address)
@@ -77,27 +52,6 @@ bool is_address_in_blacklisted_modules(ADDRINT address)
     return false;
 }
 
-bool is_module_should_be_blacklisted(const std::string &image_path)
-{
-    // avoid instrumentation of linux library.
-    std::ifstream infile("blacklist");
-    list<string> blacklist;
-
-    std::string line;
-    while (std::getline(infile, line))
-        blacklist.push_front(line);
-
-    for (list<std::string>::iterator i = blacklist.begin(); i != blacklist.end(); i++) {
-        if (*i == image_path)
-            return true;
-    }
-
-    return false;
-}
-
-
-/// Instrumentation/Analysis functions
-// who cares
 INT32 Usage()
 {
     std::cerr << "This pintool allows you to generate a JSON report that will contain the address of each basic block executed." << std::endl << std::endl;
@@ -105,34 +59,27 @@ INT32 Usage()
     return -1;
 }
 
-// Called right before the execution of each basic block with the number of instruction in arg.
 VOID PIN_FAST_ANALYSIS_CALL handle_basic_block(UINT32 number_instruction_in_bb, ADDRINT address_bb)
 {
-    // What's going on under the hood
-    // LOG("[ANALYSIS] BBL Address: " + hexstr(address_bb) + "\n");
+//  LOG("[ANALYSIS] BBL Address: " + hexstr(address_bb) + "\n");
     basic_blocks_info[address_bb] = number_instruction_in_bb;
     instruction_counter += number_instruction_in_bb;
 }
 
-// We have to instrument traces in order to instrument each BBL, the API doesn't have a BBL_AddInstrumentFunction
 VOID trace_instrumentation(TRACE trace, VOID *v)
 {
-    // We don't want to instrument the BBL contained in the linux library
-    if(is_address_in_blacklisted_modules(TRACE_Address(trace)))
+    if(!is_main_module(TRACE_Address(trace)))
         return;
 
     for(BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
     {
-        // What's going on under the hood
         // LOG("[INSTRU] BBL Address: " + hexstr(BBL_Address(bbl)) + ", " + hexstr(BBL_NumIns(bbl)) + "\n");
         
-        // Insert a call to handle_basic_block before every basic block, passing the number of instructions
         BBL_InsertCall(
             bbl,
             IPOINT_ANYWHERE,
             (AFUNPTR)handle_basic_block,
-            IARG_FAST_ANALYSIS_CALL, // Use a faster linkage for calls to analysis functions. Add PIN_FAST_ANALYSIS_CALL to the declaration between the return type and the function name. You must also add IARG_FAST_ANALYSIS_CALL to the InsertCall. For example:
-
+            IARG_FAST_ANALYSIS_CALL,
             IARG_UINT32,
             BBL_NumIns(bbl),
 
@@ -144,14 +91,9 @@ VOID trace_instrumentation(TRACE trace, VOID *v)
     }
 }
 
-// Instrumentation of the modules
 VOID image_instrumentation(IMG img, VOID * v)
 {
     ADDRINT module_low_limit = IMG_LowAddress(img), module_high_limit = IMG_HighAddress(img); 
-
-    if(!IMG_IsMainExecutable(img))
-        return;
-
     const std::string image_path = IMG_Name(img);
 
     std::pair<std::string, std::pair<ADDRINT, ADDRINT> > module_info = std::make_pair(
@@ -163,21 +105,17 @@ VOID image_instrumentation(IMG img, VOID * v)
     );
 
     module_list.insert(module_info);
-
-    if(is_module_should_be_blacklisted(image_path))
-        modules_blacklisted.insert(module_info);
 }
 
 VOID save_instrumentation_infos()
 {
-    /// basic_blocks_info section
     json_t *bbls_info = json_object();
     json_t *bbls_list = json_array();
     json_t *bbl_info = json_object();
-    // unique_count field
+
     json_object_set_new(bbls_info, "unique_count", json_integer(basic_blocks_info.size()));
-    // list field
     json_object_set_new(bbls_info, "list", bbls_list);
+
     for(BASIC_BLOCKS_INFO_T::const_iterator it = basic_blocks_info.begin(); it != basic_blocks_info.end(); ++it)
     {
         bbl_info = json_object();
@@ -186,29 +124,12 @@ VOID save_instrumentation_infos()
         json_array_append_new(bbls_list, bbl_info);
     }
 
-    /// blacklisted_modules section
-    json_t *blacklisted_modules = json_object();
-    json_t *modules_list = json_array();
-    // unique_count field
-    json_object_set_new(blacklisted_modules, "unique_count", json_integer(modules_blacklisted.size()));
-    // list field
-    json_object_set_new(blacklisted_modules, "list", modules_list);
-    for(MODULE_BLACKLIST_T::const_iterator it = modules_blacklisted.begin(); it != modules_blacklisted.end(); ++it)
-    {
-        json_t *mod_info = json_object();
-        json_object_set_new(mod_info, "path", json_string(it->first.c_str()));
-        json_object_set_new(mod_info, "low_address", json_string(hexstr(it->second.first).c_str()));
-        json_object_set_new(mod_info, "high_address", json_string(hexstr(it->second.second).c_str()));
-        json_array_append_new(modules_list, mod_info);
-    }
-
-    /// modules section
     json_t *modules = json_object();
     json_t *modules_list_ = json_array();
-    // unique_count field
+
     json_object_set_new(modules, "unique_count", json_integer(module_list.size()));
-    // list field
     json_object_set_new(modules, "list", modules_list_);
+
     for(MODULE_BLACKLIST_T::const_iterator it = module_list.begin(); it != module_list.end(); ++it)
     {
         json_t *mod_info = json_object();
@@ -218,13 +139,10 @@ VOID save_instrumentation_infos()
         json_array_append_new(modules_list_, mod_info);
     }
 
-    /// Building the tree
     json_t *root = json_object();
     json_object_set_new(root, "basic_blocks_info", bbls_info);
-    json_object_set_new(root, "blacklisted_modules", blacklisted_modules);
     json_object_set_new(root, "modules", modules);
 
-    /// Writing the report
     FILE* f = fopen(KnobOutputPath.Value().c_str(), "w");
     json_dumpf(root, f, JSON_COMPACT | JSON_ENSURE_ASCII);
     fclose(f);
