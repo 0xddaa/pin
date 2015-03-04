@@ -14,3 +14,4 @@ else
     sudo pin -t obj-ia32/codecoverage.so -o "log/"$2 -- $1
 fi
     
+sudo chmod 644 pintool.log
