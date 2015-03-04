@@ -17,8 +17,6 @@ typedef std::map<ADDRINT, UINT32> BASIC_BLOCKS_INFO_T;
 
 BASIC_BLOCKS_INFO_T basic_blocks_info;
 MODULE_LIST_T module_list;
-char *process_name; 
-
 
 KNOB<std::string> KnobOutputPath(
     KNOB_MODE_WRITEONCE,
@@ -56,7 +54,11 @@ INT32 Usage()
 VOID PIN_FAST_ANALYSIS_CALL handle_basic_block(UINT32 number_instruction_in_bb, ADDRINT address_bb)
 {
 //  LOG("[ANALYSIS] BBL Address: " + hexstr(address_bb) + "\n");
-    basic_blocks_info[address_bb] = number_instruction_in_bb;
+//    basic_blocks_info[address_bb] = number_instruction_in_bb;
+    if (basic_blocks_info[address_bb])
+        basic_blocks_info[address_bb]++;
+    else
+        basic_blocks_info[address_bb] = 1;
 }
 
 VOID trace_instrumentation(TRACE trace, VOID *v)
@@ -112,7 +114,7 @@ VOID save_instrumentation_infos()
     {
         bbl_info = json_object();
         json_object_set_new(bbl_info, "address", json_string(hexstr(it->first).c_str()));
-        json_object_set_new(bbl_info, "nbins", json_integer(it->second));
+        json_object_set_new(bbl_info, "count", json_integer(it->second));
         json_array_append_new(bbls_list, bbl_info);
     }
 
