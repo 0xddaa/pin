@@ -26,15 +26,6 @@ KNOB<std::string> KnobOutputPath(
     "Specify where you want to store the JSON report"
 );
 
-KNOB<std::string> KnobTimeoutMs(
-    KNOB_MODE_WRITEONCE,
-    "pintool",
-    "r",
-    "infinite",
-    "Set a timeout for the instrumentation"
-);
-
-
 bool is_main_module(ADDRINT address)
 {
     ADDRINT low_address = module_list.begin()->second.first;
@@ -51,10 +42,9 @@ INT32 Usage()
     return -1;
 }
 
-VOID PIN_FAST_ANALYSIS_CALL handle_basic_block(UINT32 number_instruction_in_bb, ADDRINT address_bb)
+VOID PIN_FAST_ANALYSIS_CALL handle_basic_block(ADDRINT address_bb)
 {
 //  LOG("[ANALYSIS] BBL Address: " + hexstr(address_bb) + "\n");
-//    basic_blocks_info[address_bb] = number_instruction_in_bb;
     if (basic_blocks_info[address_bb])
         basic_blocks_info[address_bb]++;
     else
@@ -75,8 +65,6 @@ VOID trace_instrumentation(TRACE trace, VOID *v)
             IPOINT_ANYWHERE,
             (AFUNPTR)handle_basic_block,
             IARG_FAST_ANALYSIS_CALL,
-            IARG_UINT32,
-            BBL_NumIns(bbl),
 
             IARG_ADDRINT,
             BBL_Address(bbl),
