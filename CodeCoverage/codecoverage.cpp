@@ -142,24 +142,9 @@ VOID save_instrumentation_infos()
     fclose(f);
 }
 
-VOID pin_is_detached(VOID *v)
-{
-    save_instrumentation_infos();
-    PIN_ExitProcess(0);
-}
-
 VOID this_is_the_end(INT32 code, VOID *v)
 {
     save_instrumentation_infos();
-}
-
-VOID sleeping_thread(VOID* v)
-{
-    if(KnobTimeoutMs.Value() == "infinite")
-        return;
-
-    PIN_Sleep(atoi(KnobTimeoutMs.Value().c_str()));
-    PIN_Detach();
 }
 
 int main(int argc, char *argv[])
@@ -168,16 +153,8 @@ int main(int argc, char *argv[])
         return Usage();
 
     TRACE_AddInstrumentFunction(trace_instrumentation, 0);
-    PIN_AddFiniFunction(this_is_the_end, 0);
     IMG_AddInstrumentFunction(image_instrumentation, 0);
-    PIN_AddDetachFunction(pin_is_detached, 0);
-
-    PIN_SpawnInternalThread(
-        sleeping_thread,
-        0,
-        0,
-        NULL
-    );
+    PIN_AddFiniFunction(this_is_the_end, 0);
 
     PIN_StartProgram();
     
