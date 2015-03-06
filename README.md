@@ -1,7 +1,7 @@
 #Intel Pin Tools basic usage  
 
 ## Building Environment  
-下載 Intel Pin Tools [pin](https://software.intel.com/en-us/articles/pintool-downloads)   
+下載 [Intel Pin Tools](https://software.intel.com/en-us/articles/pintool-downloads)   
 解壓縮就可以使用 不用另外安裝  
 將解壓縮出來的資料夾 加入 $PATH  
 
@@ -40,4 +40,4 @@ pin 提供許多分析 binary 用的 api
 `PIN_AddFiniFunction`: 定義程式結束的 callback  
 `PIN_StartProgram`: 程式開始  
 
-PIN 的詳細文件可以參考: [pin doc](https://software.intel.com/sites/landingpage/pintool/docs/71313/Pin/html/)  
+PIN 的詳細文件可以參考: [Pin 2.14 User Guide](https://software.intel.com/sites/landingpage/pintool/docs/71313/Pin/html/)  
