@@ -1,11 +1,17 @@
 #Intel Pin Tools basic usage  
 
-## building environment  
+## Building Environment  
 下載 Intel Pin Tools [pin](https://software.intel.com/en-us/articles/pintool-downloads)   
 解壓縮就可以使用 不用另外安裝  
 將解壓縮出來的資料夾 加入 $PATH  
 
-## run sample code  
+## What Is Pin
+pin 是 intel 開發的一個 binary analysis framework  
+支援 x86/x64 、 windows/linux/mac  
+pin 提供許多分析 binary 用的 api  
+使用者可以用 C/C++ 呼叫 api 來撰寫自己的 pintool  
+
+## Run Sample Code  
 *source/tools* 是 pintools 的預設路徑  
 底下已經有一些現成 pintools 可以使用  
 
@@ -15,7 +21,7 @@
 `pin -t obj-ia32/opcodemix.so -- /bin/ls`  // 用 pintool 分析 /bin/ls  
 分析結果在 opcodemix.out  
 
-## write our pintool  
+## Write Our Pintool  
 複製 *source/tools/MyPinTool* 稍作修改  
 
 *MyPinTool.cpp*: 主要的程式碼 撰寫自己要對 binary 做的分析行為  
