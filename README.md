@@ -7,7 +7,7 @@
 
 ## What Is Pin
 pin 是 intel 開發的一個 binary analysis framework  
-支援 x86/x64 、 windows/linux/mac  
+支援 x86/x64 & windows/linux/mac  
 pin 提供許多分析 binary 用的 api  
 使用者可以用 C/C++ 呼叫 api 來撰寫自己的 pintool  
 
@@ -32,8 +32,10 @@ pin 提供許多分析 binary 用的 api
 
 `Knob`: 這個類別指的是執行 pin 指令時的參數, 可以自訂一些預設值   
 `PIN_init()`: 將執行參數傳遞給 pin tool  
-`TRACE`: 一個 TRACE 就代表一條 asm 指令  
-`TRACE_AddInstrumentFunction`: 定義 trace 的 callback  
+`INS`: INS 類別代表 asm 指令  
+`INS_AddInstrumentFunction`: 定義分析 INS 的 callback  
+`TRACE`: TRACE 類別是 JIT 時分析定義的一種指令區塊 有一個進入點和數個離開點   
+`TRACE_AddInstrumentFunction`: 定義 TRACE 的 callback  
 `PIN_AddThreadStartFunction`: 定義偵測到有另一個 thread start 的 callback  
 `PIN_AddFiniFunction`: 定義程式結束的 callback  
 `PIN_StartProgram`: 程式開始  
