@@ -8,7 +8,9 @@ fi
 make
 
 if [ -z $2 ]; then
-    pin -t obj-ia32/codecoverage.so -o "log/$1_"`date +"%T_%m-%d"` -- $1
+    binary=`basename $1`
+    date=`date +%T-%m-%d`
+    pin -t obj-ia32/codecoverage.so -o "log/"$binary"_"$date -- $1
 else
     pin -t obj-ia32/codecoverage.so -o "log/"$2 -- $1
     cat "log/"$2 | python -m json.tool | less
