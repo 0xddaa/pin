@@ -1,9 +1,7 @@
 #include "pin.H"
 
-#include <jansson.h>
 #include <map>
 #include <string>
-#include <string.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -11,12 +9,16 @@
 #include <set>
 #include <list>
 
+#include <jansson.h>
+#include <signal.h>
+
 
 typedef std::map<std::string, std::pair<ADDRINT, ADDRINT> > MODULE_LIST_T;
 typedef std::map<ADDRINT, UINT32> BASIC_BLOCKS_INFO_T;
 
 BASIC_BLOCKS_INFO_T basic_blocks_info;
 MODULE_LIST_T module_list;
+bool isCrash;
 
 KNOB<std::string> KnobOutputPath(
     KNOB_MODE_WRITEONCE,
@@ -122,6 +124,7 @@ VOID save_instrumentation_infos()
     }
 
     json_t *root = json_object();
+    json_object_set_new(root, "crash", json_boolean(isCrash));
     json_object_set_new(root, "basic_blocks_info", bbls_info);
     json_object_set_new(root, "modules", modules);
 
@@ -135,6 +138,12 @@ VOID this_is_the_end(INT32 code, VOID *v)
     save_instrumentation_infos();
 }
 
+BOOL crash(THREADID tid, INT32 sig, CONTEXT *ctxt, BOOL hasHandler, const EXCEPTION_INFO *pExceptInfo, VOID *v)
+{
+    isCrash = true;
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     if(PIN_Init(argc,argv))
@@ -143,6 +152,7 @@ int main(int argc, char *argv[])
     TRACE_AddInstrumentFunction(trace_instrumentation, 0);
     IMG_AddInstrumentFunction(image_instrumentation, 0);
     PIN_AddFiniFunction(this_is_the_end, 0);
+    PIN_InterceptSignal(SIGSEGV, crash, 0);
 
     PIN_StartProgram();
     
