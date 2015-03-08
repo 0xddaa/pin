@@ -1,2 +1,2 @@
 all:
-	gcc bof1.c -o ../../benchmark/bof1
+	gcc -fno-stack-protector bof1.c -o ../../benchmark/bof1
