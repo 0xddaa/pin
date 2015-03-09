@@ -55,9 +55,6 @@ VOID PIN_FAST_ANALYSIS_CALL handle_basic_block(ADDRINT address_bb)
 
 VOID trace_instrumentation(TRACE trace, VOID *v)
 {
-    if(!is_main_module(TRACE_Address(trace)))
-        return;
-
     for(BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
     {
         // LOG("[INSTRU] BBL Address: " + hexstr(BBL_Address(bbl)) + ", " + hexstr(BBL_NumIns(bbl)) + "\n");
