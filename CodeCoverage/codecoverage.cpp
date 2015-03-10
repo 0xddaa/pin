@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <set>
 #include <list>
+#include <algorithm>
 
 #include <jansson.h>
 #include <signal.h>
@@ -18,6 +19,7 @@ typedef std::map<ADDRINT, UINT32> BASIC_BLOCKS_INFO_T;
 
 BASIC_BLOCKS_INFO_T basic_blocks_info;
 MODULE_LIST_T module_list;
+std::list<string> whitelist; 
 bool isCrash;
 
 KNOB<std::string> KnobOutputPath(
@@ -28,13 +30,25 @@ KNOB<std::string> KnobOutputPath(
     "Specify where you want to store the JSON report"
 );
 
-bool is_main_module(ADDRINT address)
+KNOB<std::string> KnobWhitelistPath(
+    KNOB_MODE_WRITEONCE,
+    "pintool",
+    "w",
+    "whitelist",
+    "Specify where you want to load whitelist"
+);
+
+bool is_whitelist(ADDRINT address)
 {
-    ADDRINT low_address = module_list.begin()->second.first;
-    ADDRINT high_address = module_list.begin()->second.second;
-//    LOG("[ANALYSIS] LOW Address: " + hexstr(low_address) + "\n");
-//    LOG("[ANALYSIS] HIGH Address: " + hexstr(high_address) + "\n");
-    return (address >= low_address && address <= high_address)? true : false;
+    for(MODULE_LIST_T::const_iterator it = module_list.begin(); it != module_list.end(); it++) {
+        ADDRINT low_address = it->second.first;
+        ADDRINT high_address = it->second.second;
+        if (std::find(whitelist.begin(), whitelist.end(), it->first) != whitelist.end() && 
+            address >= low_address && address <= high_address)
+            return true;
+    }
+
+    return false;
 }
 
 INT32 Usage()
@@ -55,7 +69,7 @@ VOID PIN_FAST_ANALYSIS_CALL handle_basic_block(ADDRINT address_bb)
 
 VOID trace_instrumentation(TRACE trace, VOID *v)
 {
-    if(!is_main_module(TRACE_Address(trace)))
+    if(!is_whitelist(TRACE_Address(trace)))
         return;
 
     for(BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
@@ -87,6 +101,9 @@ VOID image_instrumentation(IMG img, VOID * v)
             module_high_limit
         )
     );
+
+    if (IMG_IsMainExecutable(img))
+        whitelist.push_front(image_path);
 
     module_list.insert(module_info);
 }
@@ -144,11 +161,28 @@ BOOL crash(THREADID tid, INT32 sig, CONTEXT *ctxt, BOOL hasHandler, const EXCEPT
     return true;
 }
 
+void get_whitelist()
+{
+    fstream fp;
+    fp.open(KnobWhitelistPath.Value().c_str(), ios::in);
+
+    if (!fp)
+        cerr << "No whitelist" << endl;
+    else {
+        char buf[100];
+        while (fp.getline(buf, 100)) {
+            std::string white_module(buf);
+            whitelist.push_back(white_module);
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     if(PIN_Init(argc,argv))
         return Usage();
 
+    get_whitelist();
     TRACE_AddInstrumentFunction(trace_instrumentation, 0);
     IMG_AddInstrumentFunction(image_instrumentation, 0);
     PIN_AddFiniFunction(this_is_the_end, 0);
